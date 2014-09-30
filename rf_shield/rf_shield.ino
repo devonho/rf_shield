@@ -44,8 +44,11 @@ void setup(void)
 	cli(); // Disable interrupts while setting up
 
 	// Set up:
-	//  - DDRB0 = 0 (PORTB0/ICP1 in input mode)
-	DDRB &= ~B1; // DDRB7:0
+	//         UNO - DDRB0 = 0 (PORTB0/ICP1 in input mode)
+        // MEGA ADK R3 -           (PORTL0/ICP4 in input mode)
+
+	//DDRB &= ~B1; // DDRB7:0 - UNO
+        DDRL &= ~B0; // DDRL7:0 - MEGA
 
 	//  - Timer1:
 	//     - WGM13:0 = 0b0000 (normal mode)
@@ -55,6 +58,7 @@ void setup(void)
 	//     - ICNC1 = 0 (disable noise canceled)
 	//     - ICES1 = 1 (rising edge detect)
 	//     - ICIE1 = 1 (enable interrupt on input capture)
+        /*
 	TCCR1A = B00000000; // COM1A1 COM1A0 COM1B1 COM1B0 - - WGM11 WGM10
 	TCCR1B = B01000001; // ICNC1 ICES1 - WGM13 WGM12 CS12 CS11 CS10
 	TCCR1C = B00000000; // FOC1A FOC1B - - - - - -
@@ -62,16 +66,49 @@ void setup(void)
 
 	//  - Reset Timer/Counter1 and Input Capture Register 1
 	TCNT1 = 0x0000;
-	ICR1 = 0x0000;
+	ICR1 = 0x0000; 
+        */
+        //  - Timer4:
+        TCCR4A = B00000000; // Disable output compare pins. 
+        TCCR4B = B01000001;
+        TCCR4C = B00000000;
+        TIMSK4 = B00100001; // Input capture interrupt enable, Overflow interrupt enable
 
+	//  - Reset Timer/Counter4 and Input Capture Register 1
+	TCNT4 = 0x0000;
+	ICR4 = 0x0000; 
+        
 	//  - Reset interrupt flags (by writing a logical 1 into them)
-	TIFR1 = B00100001; // - - ICF1 - - OCF1B OCF1A TOV1
+	//TIFR1 = B00100001; // - - ICF1 - - OCF1B OCF1A TOV1
+        TIFR4 = B00100001; // - - ICF1 - - OCF1B OCF1A TOV1
 
 	sei(); // Re-enable interrupts
 }
 
 // Timer1 Capture Event interrupt handler; triggers when ICF1 is set
 // Measuring TCNT1 at the start and end of this suggests runtime == 52 cycles
+ISR(TIMER4_CAPT_vect)
+{
+	// Store ICR4 register into timestamps array
+	unsigned short t = ICR4;
+	// Change trigger edge
+	TCCR4B ^= _BV(ICES1);
+
+	// The timestamp value 0 is reserved for Timer1 overflows
+	if (t == 0)
+		t--; // Wrap back by one clock cycle (1/16 usec)
+	timestamps[i] = t;
+
+	if (i == 255) {
+		// Disable Input capture interrupt, and end sample collection
+		TIMSK4 = B00000000; // Disable interrupts
+		TIFR4 = B00100001; // Kill pending interrupts (1 clears)
+		finished = true; // Signal completion
+		return;
+	}
+	i++;
+}
+/*
 ISR(TIMER1_CAPT_vect)
 {
 	// Store ICR1 register into timestamps array
@@ -93,9 +130,25 @@ ISR(TIMER1_CAPT_vect)
 	}
 	i++;
 }
+*/
 
 // Timer1 Overflow interrupt handler; triggers when TOV1 is set
 // Measuring TCNT1 at the start and end of this suggests runtime == 42 cycles
+ISR(TIMER4_OVF_vect)
+{
+	// Store 0 value into timestamps array
+	timestamps[i] = 0;
+
+	if (i == 255 || finished) {
+		// Disable Input capture interrupt, and end sample collection
+		TIMSK4 = B00000000; // Disable interrupts
+		TIFR4 = B00100001; // Kill pending interrupts (1 clears)
+		finished = true; // Signal completion
+		return;
+	}
+	i++;
+}
+/*
 ISR(TIMER1_OVF_vect)
 {
 	// Store 0 value into timestamps array
@@ -110,6 +163,7 @@ ISR(TIMER1_OVF_vect)
 	}
 	i++;
 }
+*/
 
 void loop(void)
 {
