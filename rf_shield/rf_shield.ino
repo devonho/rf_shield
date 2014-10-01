@@ -45,8 +45,11 @@ void setup(void)
 
 	// Set up:
 	//  - DDRB0 = 0 (PORTB0/ICP1 in input mode)
+        PORTB = 0x00;
 	DDRB &= ~B1; // DDRB7:0
-
+	DDRB |= 0x20; // DDRB7:0 - LED Pin 13
+	DDRB |= 0x10; // DDRB7:0 - Pin 12
+        
 	//  - Timer1:
 	//     - WGM13:0 = 0b0000 (normal mode)
 	//     - CS12:0 = 0b001 (no prescaling)
@@ -113,9 +116,17 @@ ISR(TIMER1_OVF_vect)
 
 void loop(void)
 {
+	digitalWrite(12, HIGH);   // turn the LED on (HIGH is the voltage level)
+	delay(88);
+	digitalWrite(12, LOW);    // turn the LED off by making the voltage LOW
+
+	digitalWrite(13, HIGH);    // turn the LED off by making the voltage LOW
+	delay(100);              // wait for a second
+	digitalWrite(13, LOW);    // turn the LED off by making the voltage LOW  
+
 	// Spin until either 'finished' is set, or timeout_msecs have elapsed
-	unsigned long t = millis();
-	while (!finished && millis() - t < timeout_msecs);
+	//unsigned long t = millis();
+	//while (!finished && millis() - t < timeout_msecs);
 
 	// Broadcast the received samples over the serial port
 	Serial.print(F("Recorded "));
@@ -130,5 +141,5 @@ void loop(void)
 	Serial.println(F("--END--"));
 	Serial.println(F("Finished printing timestamps."));
 
-	delay(10000); // Repeat results every 10 secs
+	while(true){}
 }
