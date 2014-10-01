@@ -59,9 +59,9 @@ void setup(void)
 	//     - ICES1 = 1 (rising edge detect)
 	//     - ICIE1 = 1 (enable interrupt on input capture)
 	TCCR1A = B00000000; // COM1A1 COM1A0 COM1B1 COM1B0 - - WGM11 WGM10
-	TCCR1B = B01000001; // ICNC1 ICES1 - WGM13 WGM12 CS12 CS11 CS10
+	TCCR1B = B01000001; // ICNC1 ICES1 - WGM13 WGM12 [CS12 CS11 CS10] - Clock Select = CLKio/1 (No prescaling)
 	TCCR1C = B00000000; // FOC1A FOC1B - - - - - -
-	TIMSK1 = B00100001; // - - ICIE1 - - OCIE1B OCIE1A TOIE1
+	TIMSK1 = B00100000; // - - ICIE1 - - OCIE1B OCIE1A TOIE1, overflow interrupt disabled.
 
 	//  - Reset Timer/Counter1 and Input Capture Register 1
 	TCNT1 = 0x0000;
@@ -80,12 +80,23 @@ ISR(TIMER1_CAPT_vect)
 	// Store ICR1 register into timestamps array
 	unsigned short t = ICR1;
 	// Change trigger edge
-	TCCR1B ^= _BV(ICES1);
+        if(TCCR1B & _BV(ICES1))
+        {
+            // Rising edge detected
+            TCNT1 = 0x0000;
+	    ICR1 = 0x0000;
+        }
+        else
+        {
+            // Falling edge detected
+            timestamps[i++] = t;
+        }
+        TCCR1B ^= _BV(ICES1);
 
 	// The timestamp value 0 is reserved for Timer1 overflows
-	if (t == 0)
-		t--; // Wrap back by one clock cycle (1/16 usec)
-	timestamps[i] = t;
+	//if (t == 0)
+	//	t--; // Wrap back by one clock cycle (1/16 usec)
+	//timestamps[i] = t;
 
 	if (i == 255) {
 		// Disable Input capture interrupt, and end sample collection
@@ -94,7 +105,6 @@ ISR(TIMER1_CAPT_vect)
 		finished = true; // Signal completion
 		return;
 	}
-	i++;
 }
 
 // Timer1 Overflow interrupt handler; triggers when TOV1 is set
@@ -134,8 +144,8 @@ void loop(void)
 	Serial.println(F(" input changes. Timestamps:"));
 	Serial.println(F("--BEGIN--"));
 	for (unsigned char j = 0; j < i; j++) {
-		Serial.print(j, DEC);
-		Serial.print(":");
+		//Serial.print(j, DEC);
+		//Serial.print(":");
 		Serial.println(timestamps[j], DEC);
 	}
 	Serial.println(F("--END--"));
