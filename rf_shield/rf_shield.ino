@@ -165,7 +165,17 @@ void rfCapTest(void)
         pingpong[k] += (timestamps[j]>1000?1:0)<<j;
       }
       if(pingpong[0]==pingpong[1])
-        Serial.println(pingpong[k],HEX);
+      {
+        unsigned char str[3];
+        str[0] = (unsigned char)(pingpong[k] >>  0 & 0x000000FF);
+        str[1] = (unsigned char)(pingpong[k] >>  8 & 0x000000FF);
+        str[2] = (unsigned char)(pingpong[k] >> 16 & 0x000000FF);
+        Serial.print(str[2],HEX);
+        Serial.print(str[1],HEX);
+        Serial.print(str[0],HEX);
+        Serial.print("\n");
+        //Serial.println(pingpong[k],HEX);
+      }
       finished = false;
       enableCapture(true);     
     }  
